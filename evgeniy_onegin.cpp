@@ -9,7 +9,7 @@
 #define MAX_NUM_LINES 400
 
 size_t read_from_file(char** const ind_main, char** const ind_copy);
-int print_strings(char** const ind, const int num_lines);
+int print_strings(char** const ind, const size_t num_lines);
 int free_mem(char** const ind);
 int bubble_sort(void* const data, const size_t num_elems, const size_t size_el, int (*comp)(void* const prev_num, void* const next_num));
 int compare(void* const prev_num, void* const next_num, int (*comp)(void* const prev, void* const next));
@@ -25,14 +25,14 @@ int main()
     char* ind_copy[MAX_NUM_LINES] = {0};
     size_t num_lines = 0;
 
-    if((num_lines = read_from_file(ind_main, ind_copy)) == -1)
+    if((num_lines = read_from_file(ind_main, ind_copy)) == 3)
     {
         return 1;
     }
 
     print_strings(ind_main, num_lines);
 /*
-    sort_strings_beg();
+    bubble_sort()
     print_strings(); //вывод в алфавитном порядке
     sort_strings_end();
     print_strings(); //вывод в алфавитном порядке(строки отсортированы по концу)
@@ -53,7 +53,7 @@ size_t read_from_file(char** const ind_main, char** const ind_copy)
     if (file == NULL)
     {
         printf("Open file error");
-        return 67;
+        return 3;
 
     }
     char buf[MAX_BUF] = {};
@@ -70,13 +70,13 @@ size_t read_from_file(char** const ind_main, char** const ind_copy)
     return num_lines;
 }
 
-int print_strings(char** const ind, const int num_lines)
+int print_strings(char** const ind, const size_t num_lines)
 {
     assert(ind != NULL);
 
     for (size_t i = 0; i < num_lines; i++)
     {
-        printf("%s", (*ind)[i]);
+        printf("%s", ind[i]);
     }
 
     return 0;
