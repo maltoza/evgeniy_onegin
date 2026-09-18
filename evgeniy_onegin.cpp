@@ -12,7 +12,6 @@ size_t read_from_file(char** const ind_main, char** const ind_copy);
 int print_strings(char** const ind, const size_t num_lines);
 int free_mem(char** const ind);
 int bubble_sort(void* const data, const size_t num_elems, const size_t size_el, int (*comp)(void* const prev_num, void* const next_num));
-int compare(void* const prev_num, void* const next_num, int (*comp)(void* const prev, void* const next));
 int swap(void* value1, void* value2);
 int strcmp_my(const char* str1, const char* str2);
 int compare_strings(void* const prev, void* const next);
@@ -31,9 +30,9 @@ int main()
     }
 
     print_strings(ind_main, num_lines);
+    bubble_sort(ind_main, num_lines, sizeof(char*), compare_strings);
+    print_strings(ind_main, num_lines); //вывод в алфавитном порядке
 /*
-    bubble_sort()
-    print_strings(); //вывод в алфавитном порядке
     sort_strings_end();
     print_strings(); //вывод в алфавитном порядке(строки отсортированы по концу)
     print_strings(); // вывод оригинала
@@ -61,7 +60,6 @@ size_t read_from_file(char** const ind_main, char** const ind_copy)
     while(fgets(buf, MAX_BUF, file) != NULL)
     {
         ind_main[num_lines] = strdup(buf);
-        printf("%s", ind_main[num_lines]);
         ind_copy[num_lines] = strdup(buf);
         num_lines++;
     }
@@ -74,10 +72,12 @@ int print_strings(char** const ind, const size_t num_lines)
 {
     assert(ind != NULL);
 
+    FILE* file = fopen("output.txt", "w");
     for (size_t i = 0; i < num_lines; i++)
     {
-        printf("%s", ind[i]);
+        fprintf(file, "%s", ind[i]);
     }
+    fclose(file);
 
     return 0;
 }
@@ -133,7 +133,6 @@ int compare_strings(void* const prev, void* const next)
         swap(str1, str2);
         return 1;
     }
-    printf("%s %s", str1, str2);
 
     return 0;
 }
