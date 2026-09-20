@@ -23,8 +23,8 @@ enum ERRORS
 enum ERRORS read_from_file(char* (*ind_src)[MAX_NUM_LINES], size_t* num_lines);
 enum ERRORS write_to_file(const char* const (*ind)[MAX_NUM_LINES], const size_t num_lines);
 int free_mem(char* ind[], const size_t num_lines);
-enum ERRORS bubble_sort(void* data, const size_t num_elems, const size_t size_el, int (*comp)(void* prev_num, void* next_num));
-int compare_char_up(void* prev_str, void* next_str);
+enum ERRORS bubble_sort(void* array, const size_t num_elems, const size_t size_el, int (*comp)(void** prev_num, void** next_num));
+int compare_char_up(void** prev_str, void** next_str);
 int strcmp_my(char* str1, char* str2);
 char* eat_not_symb(char** str);
 int swap(void** str1, void** str2);
@@ -158,9 +158,9 @@ int free_mem(char* ind[], const size_t num_lines)
 
 
 // сортировка пузырьком
-enum ERRORS bubble_sort(void* data, const size_t num_elems, const size_t size_el, int (*comp)(void* prev_num, void* next_num))
+enum ERRORS bubble_sort(void* array, const size_t num_elems, const size_t size_el, int (*comp)(void** prev_num, void** next_num))
 {
-    assert(data != NULL);
+    assert(array != NULL);
     assert(comp != NULL);
 
     for (size_t n = 0; n < num_elems; n++)
@@ -168,8 +168,8 @@ enum ERRORS bubble_sort(void* data, const size_t num_elems, const size_t size_el
         size_t num_swaps = 0;
         for (size_t i = 0; i < num_elems - n - 1; i++)
         {
-            num_swaps += comp((void*)((uintptr_t)data + i * size_el),
-                              (void*)((uintptr_t)data + (i + 1) * size_el));
+            num_swaps += comp((void**)((uintptr_t)array + i * size_el),
+                              (void**)((uintptr_t)array + (i + 1) * size_el));
         }
         if (num_swaps == 0)
         {
@@ -181,12 +181,14 @@ enum ERRORS bubble_sort(void* data, const size_t num_elems, const size_t size_el
 }
 
 
-int compare_char_up(void* prev_str, void* next_str)
+int compare_char_up(void** prev_str, void** next_str)
 {
+    char** str1 = (char**) prev_str;
+    char** str2 = (char**) next_str;
 
     if (strcmp_my(*(char**)prev_str, *(char**)next_str) > 0)
     {
-        swap((void**)prev_str, (void**)next_str);
+        swap(prev_str, next_str);
         return 1;
     }
 
