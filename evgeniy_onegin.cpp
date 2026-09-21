@@ -6,35 +6,30 @@
 #include <ctype.h>
 
 
-#define MAX_BUF 100 //максимальная длина строки
-#define MAX_NUM_LINES 400 //максимально количество линий
+#define MAX_BUF       100 // максимальная длина строки
+#define MAX_NUM_LINES 10000 // максимально количество линий
 
-#define INPUT_FILE_NAME "poem.txt"
-#define OUTPUT_FILE_NAME "output.txt"
+#define INPUT_FILE_NAME  "poem.txt"   // входной файл
+#define OUTPUT_FILE_NAME "output.txt" // выходной файл
 
-enum ERRORS
+// коды ошибок
+enum ERRORS     
 {
-    ERRORS_OK = 0,
-    ERRORS_FOPEN,
-    ERRORS_FREAD,
-    ERRORS_FWRITE
+    ERRORS_OK = 0, // нет ошибки
+    ERRORS_FOPEN,  // ошибка открытия файла
+    ERRORS_FREAD,  // ошибка чтения файла
+    ERRORS_FWRITE, // ошибка записи в файл
+    ERRORS_SIZE    // ошибка размера данных
 };
 
 enum ERRORS read_from_file(char* (*ind_src)[MAX_NUM_LINES], size_t* num_lines);
-enum ERRORS write_to_file(const char* const (*ind)[MAX_NUM_LINES], const size_t num_lines);
+enum ERRORS write_to_file (const char* const (*ind)[MAX_NUM_LINES], const size_t num_lines);
 int free_mem(char* ind[], const size_t num_lines);
 enum ERRORS bubble_sort(void* array, const size_t num_elems, const size_t size_el, int (*comp)(void** prev_num, void** next_num));
 int compare_char_up(void** prev_str, void** next_str);
 int strcmp_my(char* str1, char* str2);
 char* eat_not_symb(char** str);
-int swap(void** str1, void** str2);
-
-/*
-int swap(char** value1, char** value2);
-int strcmp_my(char* str1, char* str2);
-int compare_strings(void** const prev, void** const next);
-char** skip_not_letters(char** str);
-*/
+enum ERRORS swap(void** str1, void** str2);
 
 int main()
 {
@@ -60,6 +55,7 @@ int main()
         return result;
     }
 
+    // сортировка по алфавиту с начала строки (пузырьком)
     bubble_sort((void*)ind_main, num_lines, sizeof(char*), compare_char_up);
 
     //вывод строк, отсортированных в алфавитном порядке с начала
@@ -78,14 +74,15 @@ int main()
     free_mem(ind_main, num_lines);
     free_mem(ind_copy, num_lines);
 
-    //индикатор окончания программы
-    printf("Done");
+    // индикатор окончания программы
+    printf("Done\n");
 
     return 0;
 }
 
 enum ERRORS read_from_file(char* (*ind_src)[MAX_NUM_LINES], size_t* num_lines)
 {
+    // проверка входных парамеров
     assert(ind_src != NULL);
     assert(num_lines != NULL);
 
@@ -94,7 +91,7 @@ enum ERRORS read_from_file(char* (*ind_src)[MAX_NUM_LINES], size_t* num_lines)
     if (file == NULL)
     {
         // если файл не открыт
-        printf("Open file to read error");
+        printf("Open file to read error\n");
         return ERRORS_FOPEN;
     }
 
@@ -112,9 +109,6 @@ enum ERRORS read_from_file(char* (*ind_src)[MAX_NUM_LINES], size_t* num_lines)
         }
     }
 
-    char* str1 = (*ind_src)[0];
-    char* str2 = (*ind_src)[1];
-
     fclose(file);
     return ERRORS_OK;
 }
@@ -122,19 +116,30 @@ enum ERRORS read_from_file(char* (*ind_src)[MAX_NUM_LINES], size_t* num_lines)
 //запись текста в файл
 enum ERRORS write_to_file(const char* const (*ind)[MAX_NUM_LINES], const size_t num_lines)
 {
+    // проверка входных данных
     assert(ind != NULL);
+    assert(num_lines != 0);
+    if (num_lines == 0)
+    {
+        return ERRORS_SIZE;
+    }
 
-    //открытие файла для записи
+    // открытие файла для записи
     FILE* file = fopen(OUTPUT_FILE_NAME, "a+");
     if (file == NULL)
     {
+        // ошибка открытия файла
         printf("Open file to write error");
         return ERRORS_FWRITE;
     }
 
+    // вывод данных в файл
     for (size_t i = 0; i < num_lines; i++)
     {
-        fprintf(file, "%s", (*ind)[i]);
+        if ((*ind)[i] != "\n")
+        {
+            fprintf(file, "%s", (*ind)[i]);
+        }
     }
     fprintf(file, "\n\n=======================================================================================\n\n");
 
@@ -142,11 +147,13 @@ enum ERRORS write_to_file(const char* const (*ind)[MAX_NUM_LINES], const size_t 
     return ERRORS_OK;
 }
 
-//очистка памяти
+// очистка памяти
 int free_mem(char* ind[], const size_t num_lines)
 {
+    // проверка входных данных
     assert(ind != NULL);
 
+    // очистка элементов массива
     for (size_t i = 0; i < num_lines; i++)
     {
         free(ind[i]);
@@ -160,9 +167,11 @@ int free_mem(char* ind[], const size_t num_lines)
 // сортировка пузырьком
 enum ERRORS bubble_sort(void* array, const size_t num_elems, const size_t size_el, int (*comp)(void** prev_num, void** next_num))
 {
+    // проверка входных параметров
     assert(array != NULL);
     assert(comp != NULL);
 
+    // сортировка
     for (size_t n = 0; n < num_elems; n++)
     {
         size_t num_swaps = 0;
@@ -181,11 +190,9 @@ enum ERRORS bubble_sort(void* array, const size_t num_elems, const size_t size_e
 }
 
 
+// обмен строк по условию
 int compare_char_up(void** prev_str, void** next_str)
 {
-    char** str1 = (char**) prev_str;
-    char** str2 = (char**) next_str;
-
     if (strcmp_my(*(char**)prev_str, *(char**)next_str) > 0)
     {
         swap(prev_str, next_str);
@@ -195,17 +202,19 @@ int compare_char_up(void** prev_str, void** next_str)
     return 0;
 }
 
-
+// сравнение строк
 int strcmp_my(char* str1, char* str2)
 {
+    // проверка входных параметров
     assert(str1 != NULL);
     assert(str2 != NULL);
 
+    // перебор символов
     while((str1 = eat_not_symb(&str1)) != '\0' && (str2 = eat_not_symb(&str2)) != '\0')
     {
-        if (*str1 != *str2)
+        if (tolower(*str1) != tolower(*str2) && toupper(*str1) != toupper(*str2))
         {
-            return *str1 - *str2;
+            return tolower(*str1) - tolower(*str2);
         }
         str1++;
         str2++;
@@ -214,9 +223,11 @@ int strcmp_my(char* str1, char* str2)
     return 0;
 }
 
+
+// устранение не букв
 char* eat_not_symb(char** str)
 {
-    while(!isalpha(**str))
+    while(!isalpha(**str) && ((**str) != '\0'))
     {
         (*str)++;
     }
@@ -224,11 +235,17 @@ char* eat_not_symb(char** str)
     return *str;
 }
 
-
-int swap(void** str1, void** str2)
+// обмен указателей на строки
+enum ERRORS swap(void** str1, void** str2)
 {
+    // проверка входных параметров
+    assert(str1 != NULL);
+    assert(str2 != NULL);
+    
+    //обмен
     void* temp = *str1;
     *str1 = *str2;
     *str2 = temp;
-    return 0;
+
+    return ERRORS_OK;
 }
