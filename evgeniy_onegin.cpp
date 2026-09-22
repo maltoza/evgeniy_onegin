@@ -30,11 +30,12 @@ enum ERRORS
 ERRORS read_from_file(char* (*ind_main)[MAX_NUM_LINES], size_t* num_lines);
 ERRORS write_to_file (const char* const (*ind)[MAX_NUM_LINES], const size_t num_lines, bool flag);
 bool is_alphas_in(const char* str);
-int free_mem(char* ind[], const size_t num_lines);
+int free_values(char* ind[], const size_t num_lines);
+int free_ptrs(char* ind[], const size_t num_lines);
 ERRORS bubble_sort(void* array, const size_t num_elems, const size_t size_el, int (*comp)(void** prev_num, void** next_num));
 int compare_char_up(void** prev_str, void** next_str);
 int compare_char_down(void** prev_str, void** next_str);
-char* reverse(char* str);
+char* reverse(char** str);
 int strcmp_my(char* str1, char* str2);
 char* eat_not_symb(char** str);
 ERRORS swap(void** str1, void** str2);
@@ -76,7 +77,7 @@ int main()
     {
         return result;
     }
-    /*
+    
     // сортировка по алфавиту по концу
     bubble_sort((void*)ind_main, num_lines, sizeof(char*), compare_char_down);
     
@@ -86,7 +87,7 @@ int main()
     {
         return result;
     }
-    */
+    
     // вывод оригинала
     result = write_to_file((const char* const (*)[MAX_NUM_LINES])&ind_copy, num_lines, DONT_DELETE_NOT_ALPHAS);
     if(result != ERRORS_OK)
@@ -95,8 +96,10 @@ int main()
     }
 
     // очистка памяти
-    free_mem(ind_main, num_lines);
-    free_mem(ind_copy, num_lines);
+    free_values(ind_main, num_lines);
+    free_ptrs(ind_main, num_lines);
+    free_ptrs(ind_copy, num_lines);
+    
 
     // индикатор окончания программы
     printf("Done\n");
@@ -190,7 +193,7 @@ bool is_alphas_in(const char* str)
 }
 
 // очистка памяти
-int free_mem(char* ind[], const size_t num_lines)
+int free_values(char* ind[], const size_t num_lines)
 {
     // проверка входных данных
     assert(ind != NULL);
@@ -199,6 +202,19 @@ int free_mem(char* ind[], const size_t num_lines)
     for (size_t i = 0; i < num_lines; i++)
     {
         free(ind[i]);
+    }
+
+    return 0;
+}
+
+int free_ptrs(char* ind[], const size_t num_lines)
+{
+    // проверка входных данных
+    assert(ind != NULL);
+
+    // очистка элементов массива
+    for (size_t i = 0; i < num_lines; i++)
+    {
         ind[i] = NULL;
     }
 
@@ -246,7 +262,7 @@ int compare_char_up(void** prev_str, void** next_str)
 
 int compare_char_down(void** prev_str, void** next_str)
 {
-    if (strcmp_my(reverse(*((char**)prev_str)), reverse(*((char**)next_str))) > 0)
+    if (strcmp_my(reverse((char**)(prev_str)), reverse((char**)(next_str))) > 0)
     {
         swap(prev_str, next_str);
         return 1;
@@ -255,19 +271,20 @@ int compare_char_down(void** prev_str, void** next_str)
     return 0; 
 }
 
-char* reverse(char* str)
+char* reverse(char** str)
 {
     assert(str != NULL);
 
-    size_t len_str = strlen(str);
-    for (size_t i = 0; i < len_str / 2; i++)
+    size_t len_str = strlen(*str) - 1;
+
+    for (size_t i = 0; i < len_str; i++)
     {
-            char temp = str[i];
-            str[i] = str[len_str - i - 1];
-            str[len_str - i - 1] = temp;
+        char temp = (*str)[i];
+        (*str)[i] = (*str)[len_str - i - 1];
+        (*str)[len_str - i - 1] = temp;
     }
 
-    return str;
+    return *str;
 }
 
 // сравнение строк
