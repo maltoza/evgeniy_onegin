@@ -32,7 +32,8 @@ ERRORS read_from_file(char* (*ind_main)[MAX_NUM_LINES], size_t* num_lines);
 ERRORS bubble_sort(void* array, const size_t num_elems, const size_t size_el, int (*comp)(void** prev_num, void** next_num));
 int compare_char_up(void** prev_str, void** next_str);
 int compare_char_down(void** prev_str, void** next_str);
-char* reverse(char** str);
+int strcmp_reverse(char* str1, char* str2);
+int eat_not_symb_reverse(char* str, int* i);
 int strcmp_my(char* str1, char* str2);
 char* eat_not_symb(char** str);
 ERRORS swap(void** str1, void** str2);
@@ -184,7 +185,7 @@ int compare_char_up(void** prev_str, void** next_str)
 
 int compare_char_down(void** prev_str, void** next_str)
 {
-    if (strcmp_my(reverse((char**)prev_str), reverse((char**)next_str)) > 0)
+    if (strcmp_reverse(*(char**)prev_str, *(char**)next_str) > 0)
     {
         swap(prev_str, next_str);
         return 1;
@@ -193,23 +194,44 @@ int compare_char_down(void** prev_str, void** next_str)
     return 0; 
 }
 
-
-char* reverse(char** str)
+int strcmp_reverse(char* str1, char* str2)
 {
-    int len_local = strlen(*str) - 1;
-    int i = 0;
+    // проверка входных параметров
+    assert(str1 != NULL);
+    assert(str2 != NULL);
 
-    while (i < len_local)
+    // перебор символов
+    int str1_ind = strlen(str1);
+    int str2_ind = strlen(str2);
+
+    while(str1_ind >= 0 && str2_ind >= 0)
     {
-        char temp = (*str)[i];
-        (*str)[i] = (*str)[len_local];
-        (*str)[len_local] = temp;
-        i++;
-        len_local--;
+        eat_not_symb_reverse(str1, &str1_ind);
+        eat_not_symb_reverse(str2, &str2_ind);
+
+        if (tolower(str1[str1_ind]) != tolower(str2[str2_ind]))
+        {
+            return tolower(str1[str1_ind]) - tolower(str2[str2_ind]);
+        }
+
+        str1_ind--;
+        str2_ind--;
+
     }
 
-    return *str;
+    return 0;
 }
+
+int eat_not_symb_reverse(char* str, int* i)
+{
+    while((*i) >= 0 && !isalpha(str[*i]))
+    {
+        (*i)--;
+    }
+
+    return 0;
+}
+
 
 // сравнение строк
 int strcmp_my(char* str1, char* str2)
