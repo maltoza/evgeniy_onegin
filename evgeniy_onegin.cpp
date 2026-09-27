@@ -4,45 +4,53 @@
 #include <string.h>
 #include <assert.h>
 #include <ctype.h>
-
-
-#define MAX_BUF       100 // максимальная длина строки
-#define MAX_NUM_LINES 10000 // максимально количество линий
+#include <sys\stat.h>
+#include <fcntl.h>
 
 #define INPUT_FILE_NAME  "poem.txt"   // входной файл
 #define OUTPUT_FILE_NAME "output.txt" // выходной файл
 
-#define DELETE_NOT_ALPHAS false
-#define DONT_DELETE_NOT_ALPHAS true
-
 // коды ошибок
 enum ERRORS     
 {
-    ERRORS_OK = 0, // нет ошибки
-    ERRORS_FOPEN,  // ошибка открытия файла
-    ERRORS_FREAD,  // ошибка чтения файла
-    ERRORS_FWRITE, // ошибка записи в файл
-    ERRORS_SIZE,   // ошибка размера данных
-    ERRORS_GETMEM  // ошибка выделения памяти
+    ERRORS_OK = 0,  // нет ошибки
+    ERRORS_FOPEN,   // ошибка открытия файла
+    ERRORS_FREAD,   // ошибка чтения файла
+    ERRORS_FWRITE,  // ошибка записи в файл
+    ERRORS_SIZE,    // ошибка размера данных
+    ERRORS_GETMEM,  // ошибка выделения памяти
+    ERRORS_GETFDATA // ошибка заполнения структуры с данными о файле
 };
 
-//поменять порядок
-ERRORS read_from_file(char* (*ind_main)[MAX_NUM_LINES], size_t* num_lines);
+// параметры строки
+struct str_el
+{
+    size_t len; // длина строки
+    char*  str; // указатель на строку
+};
 
-ERRORS bubble_sort(void* array, const size_t num_elems, const size_t size_el, int (*comp)(void** prev_num, void** next_num));
-int compare_char_up(void** prev_str, void** next_str);
-int compare_char_down(void** prev_str, void** next_str);
-int strcmp_reverse(char* str1, char* str2);
-int eat_not_symb_reverse(char* str, int* i);
+
+ERRORS search_file_size(size_t* file_size);
+ERRORS read_from_file(void** buffer, size_t* file_size);
+ERRORS change_Nto0(char* buffer, size_t num_symb);
+ERRORS count_lines(char* buffer, size_t num_symb, size_t* num_lines);
+ERRORS fill_ind_array(str_el* ind, char *buf, size_t num_symb, size_t num_lines);
+size_t strlen_my(const char* const str);
+
+ERRORS bubble_sort(void* array, const size_t num_elems, const size_t size_el, int (*comp)(void* prev_num, void* next_num, const size_t size_el));
+int compare_char_up(void* prev_str, void* next_str, const size_t size_el);
+int compare_char_down(void* prev_str, void* next_str, const size_t size_el);
 int strcmp_my(char* str1, char* str2);
 char* eat_not_symb(char** str);
-ERRORS swap(void** str1, void** str2);
+int strcmp_reverse(char* str1, char* str2);
+int eat_not_symb_reverse(char* str, int* i);
+ERRORS swap(void* str1, void* str2, const size_t size_el);
 
-ERRORS write_to_file (const char* const (*ind)[MAX_NUM_LINES], const size_t num_lines, bool flag);
-bool is_alphas_in(const char* str);
+ERRORS write_to_file (str_el* ind, const size_t num_lines);
+ERRORS write_buffer_to_file(char* buf, const size_t num_symb);
 
-int free_values(char* ind[], const size_t num_lines);
-int free_ptrs(char* ind[], const size_t num_lines);
+int free_mem(char** ind, size_t max_els);
+
 
 
 int main()
@@ -51,59 +59,58 @@ int main()
     FILE* clean = fopen(OUTPUT_FILE_NAME, "w");
     fclose(clean);
 
-    char* ind_main[MAX_NUM_LINES] = {};
-    char* ind_copy[MAX_NUM_LINES] = {};
-    size_t num_lines = 0;
-
-    // считывание строк из файла
-    ERRORS result = read_from_file(&ind_main, &num_lines);
-    if(result != ERRORS_OK)
-    {
-        return result;
-    }
-
-    // копирование во второй файл
-    memcpy((void*)ind_copy, (void*)ind_main, num_lines * sizeof(ind_main[0]));
+    // нахождение размера файла(количества байт)
+    size_t size_file = 0;
+    ERRORS result = search_file_size(&size_file); // открытие файла отдельно
+    if(result != ERRORS_OK) return result;
+        
+    // создание буфера для текста
+    void* buffer;
+    // считывание текста
+    result = read_from_file(&buffer, &size_file); 
+    if(result != ERRORS_OK) return result;   
     
-    // вывод строк в файл
-    result = write_to_file((const char* const (*)[MAX_NUM_LINES])&ind_main, num_lines, DONT_DELETE_NOT_ALPHAS);
-    if(result != ERRORS_OK)
-    {
-        return result;
-    }
+    // количество символов в файле
+    size_t num_symb = size_file;
+    
+    // посчёт количества линий
+    size_t num_lines = 0;
+    result = count_lines((char*)buffer, num_symb, &num_lines);
+    if(result != ERRORS_OK) return result;
+
+    // массив указателей на начала строк
+    void* ind = calloc(num_lines, sizeof(str_el));
+
+    // заполнение массива указателей
+    fill_ind_array((str_el*)ind, (char*)buffer, num_symb, num_lines);
 
     // сортировка по алфавиту с начала строки
-    bubble_sort((void*)ind_main, num_lines, sizeof(char*), compare_char_up);
+    bubble_sort(ind, num_lines, sizeof(str_el), compare_char_up);
+
+    str_el a = ((str_el*)(ind))[0];
+    str_el b = ((str_el*)(ind))[1];
 
     // вывод строк, отсортированных в алфавитном порядке с начала
-    result = write_to_file((const char* (*)[MAX_NUM_LINES])&ind_main, num_lines, DELETE_NOT_ALPHAS);
-    if(result != ERRORS_OK)
-    {
-        return result;
-    }
+    result = write_to_file((str_el*)ind, num_lines);
+    if(result != ERRORS_OK) return result;
     
     // сортировка по алфавиту по концу
-    bubble_sort((void*)ind_main, num_lines, sizeof(char*), compare_char_down);
+    bubble_sort(ind, num_lines, sizeof(str_el), compare_char_down);
     
     //вывод в алфавитном порядке(строки отсортированы по концу)
-    result = write_to_file((const char* (*)[MAX_NUM_LINES])&ind_main, num_lines, DELETE_NOT_ALPHAS);
-    if(result != ERRORS_OK)
-    {
-        return result;
-    }
+    result = write_to_file((str_el*)ind, num_lines);
+    if(result != ERRORS_OK) return result;
+    
+    // замена \0 на \n
+    // change_0toN((char*)buffer, size_file);
     
     // вывод оригинала
-    result = write_to_file((const char* const (*)[MAX_NUM_LINES])&ind_copy, num_lines, DONT_DELETE_NOT_ALPHAS);
-    if(result != ERRORS_OK)
-    {
-        return result;
-    }
+    result = write_buffer_to_file((char*)buffer, num_symb);
+    if(result != ERRORS_OK) return result;
 
     // очистка памяти
-    free_values(ind_main, num_lines);
-    free_ptrs(ind_main, num_lines);
-    free_ptrs(ind_copy, num_lines);
-    
+    free(ind);
+    free(buffer);
 
     // индикатор окончания программы
     printf("Done\n");
@@ -111,42 +118,139 @@ int main()
     return 0;
 }
 
-ERRORS read_from_file(char* (*ind_main)[MAX_NUM_LINES], size_t* num_lines)
+
+// нахождение размера файла
+ERRORS search_file_size(size_t* file_size)
 {
-    // проверка входных парамеров
-    assert(ind_main != NULL);
-    assert(num_lines != NULL);
+    assert(file_size != NULL);
 
     // открытие файла для чтения
-    FILE* file = fopen(INPUT_FILE_NAME, "r");
-    if (file == NULL)
+    int fd = open(INPUT_FILE_NAME, O_RDONLY);
+    if (fd == -1)
     {
         // если файл не открыт
         printf("Open file to read error\n");
         return ERRORS_FOPEN;
     }
 
-    // чтение построчно из файла и запись указателя на считанную строку в массив
-    char buf[MAX_BUF] = {};
-    while(fgets(buf, MAX_BUF, file) != NULL)
+    // считывание информации о файле
+    struct stat buff;
+    if (stat(INPUT_FILE_NAME, &buff) != 0)
     {
-        (*ind_main)[*num_lines] = strdup(buf);
-        (*num_lines)++;
-        if ((*num_lines) > MAX_NUM_LINES)
-        {
-            printf("Read file error");
-            fclose(file);
-            return ERRORS_FREAD;
-        }
+        printf("Read file data error\n");
+        close(fd);
+        return ERRORS_GETFDATA;
     }
 
-    fclose(file);
+    // размер файла
+    *file_size = (size_t)buff.st_size;
+
+    close(fd);
+    return ERRORS_OK;
+}
+
+
+// считывание текста из файла
+ERRORS read_from_file(void** buffer, size_t* file_size)
+{
+
+    *buffer = calloc(*file_size, sizeof(char));
+    int fd = open(INPUT_FILE_NAME, O_BINARY);
+    if (fd == -1)
+    {
+        // если файл не открыт
+        printf("Open file to read error\n");
+        return ERRORS_FOPEN;
+    }
+    *file_size = read(fd, *buffer, *file_size);
+    //change_Nto0(buffer, *file_size/sizeof(char));
+
+    close(fd);
+    return ERRORS_OK;
+}
+
+
+// замена \n на \0
+ERRORS change_Nto0(char* buffer, size_t num_symb)
+{
+    assert(buffer != NULL);
+    assert(num_symb != 0);
+    
+    for (size_t i = 0; i < num_symb; i++)
+    {
+        assert(buffer[i] == '\0');
+        if(buffer[i] == '\n')
+        {
+            buffer[i] = '\0';
+        }
+    }
+    
+    return ERRORS_OK;
+}
+
+
+
+// подсчёт количества строк, замена \n на \0
+ERRORS count_lines(char* buffer, size_t num_symb, size_t* num_lines)
+{
+    (*num_lines) = 0;
+    for (size_t i = 0; i < num_symb; i++)
+    {
+        if(buffer[i] == '\n')
+        {
+            (*num_lines)++;
+        }
+    }
+    
+    return ERRORS_OK;
+}
+
+
+
+ERRORS fill_ind_array(str_el* ind, char *buf, size_t num_symb, size_t num_lines)
+{
+    // защита: если буфер пустой или строк не требуется, ничего не делаем
+    if (num_symb == 0 || num_lines == 0 || buf == NULL || ind == NULL) {
+        return ERRORS_OK; 
+    } // calloc для ind +  проверка
+ 
+    // первая строка всегда начинается с самого начала буфера
+    ind[0].str = &buf[0];
+
+    // безопасно идем по всему буферу до конца
+    size_t j = 1;
+    for (size_t i = 1; i < num_symb - 1; i++)
+    {
+        if (buf[i] == '\n')
+        {   
+            ind[j].str = &buf[i + 1];
+            ind[j - 1].len = ind[j].str - ind[j - 1].str;
+            j++;
+        }
+    }
+    
+    return ERRORS_OK;
+}
+
+
+// замена \0 на \n
+ERRORS change_0toN(char* buffer, size_t num_symb)
+{
+    for (size_t i = 0; i < num_symb; i++)
+    {
+        if(*buffer == '\0')
+        {
+            *buffer = '\n';
+        }
+        buffer++;
+    }
+
     return ERRORS_OK;
 }
 
 
 // сортировка пузырьком
-ERRORS bubble_sort(void* array, const size_t num_elems, const size_t size_el, int (*comp)(void** prev_num, void** next_num))
+ERRORS bubble_sort(void* array, const size_t num_elems, const size_t size_el, int (*comp)(void* prev_num, void* next_num, const size_t size_el))
 {
     // проверка входных параметров
     assert(array != NULL);
@@ -158,8 +262,12 @@ ERRORS bubble_sort(void* array, const size_t num_elems, const size_t size_el, in
         size_t num_swaps = 0;
         for (size_t i = 0; i < num_elems - n - 1; i++)
         {
-            num_swaps += comp((void**)((uintptr_t)array + i * size_el),
-                              (void**)((uintptr_t)array + (i + 1) * size_el));
+            str_el* a = (str_el*)((uintptr_t)array + i * size_el);
+            str_el* b = (str_el*)((uintptr_t)array + (i + 1) * size_el);
+            num_swaps += comp((void**)((uintptr_t)array + i * size_el), 
+                              (void**)((uintptr_t)array + (i + 1) * size_el),
+                              size_el);
+            int c = 0;
         }
         if (num_swaps == 0)
         {
@@ -172,27 +280,69 @@ ERRORS bubble_sort(void* array, const size_t num_elems, const size_t size_el, in
 
 
 // обмен строк по условию
-int compare_char_up(void** prev_str, void** next_str)
+int compare_char_up(void* prev_str, void* next_str, const size_t size_el)
 {
-    if (strcmp_my(*(char**)prev_str, *(char**)next_str) > 0)
+    char* a = ((str_el*)prev_str)->str;
+    char* b = ((str_el*)next_str)->str;
+    if (strcmp_my(a, b) > 0)
     {
-        swap(prev_str, next_str);
+        swap(prev_str, next_str, size_el);
         return 1;
     }
 
     return 0;
 }
 
-int compare_char_down(void** prev_str, void** next_str)
+int compare_char_down(void* prev_str, void* next_str, const size_t size_el)
 {
-    if (strcmp_reverse(*(char**)prev_str, *(char**)next_str) > 0)
+    char* a = ((str_el*)prev_str)->str;
+    char* b = ((str_el*)next_str)->str;    
+    if (strcmp_reverse(a, b) > 0)
     {
-        swap(prev_str, next_str);
+        swap(prev_str, next_str, size_el);
         return 1;
     }
 
     return 0; 
 }
+
+
+// сравнение строк
+int strcmp_my(char* str1, char* str2)
+{
+    // проверка входных параметров
+    assert(str1 != NULL);
+    assert(str2 != NULL);
+    
+    // перебор символов
+    while(*str1 != '\n' && *str2 != '\n')
+    {
+        eat_not_symb(&str1);
+        eat_not_symb(&str2);
+        if (tolower(*str1) != tolower(*str2))
+        {
+            return tolower(*str1) - tolower(*str2);
+        }
+        str1++;
+        str2++;
+    }
+
+    return 0;
+}
+
+
+// устранение не букв
+char* eat_not_symb(char** str)
+{
+    while(((**str) != '\n') && (!isalpha(**str)))
+    {
+        (*str)++;
+    }
+
+    return *str;
+}
+
+
 
 int strcmp_reverse(char* str1, char* str2)
 {
@@ -201,8 +351,9 @@ int strcmp_reverse(char* str1, char* str2)
     assert(str2 != NULL);
 
     // перебор символов
-    int str1_ind = strlen(str1);
-    int str2_ind = strlen(str2);
+    int str1_ind = strlen_my(str1);
+    int str2_ind = strlen_my(str2);
+
 
     while(str1_ind >= 0 && str2_ind >= 0)
     {
@@ -222,6 +373,22 @@ int strcmp_reverse(char* str1, char* str2)
     return 0;
 }
 
+
+size_t strlen_my(const char* const str)
+{
+    assert(str != NULL);
+
+    size_t length = 0;
+    for (size_t i = 0; str[i] != '\n'; i++)
+    {
+        length++;
+    }
+
+    return length;
+}
+
+
+
 int eat_not_symb_reverse(char* str, int* i)
 {
     while((*i) >= 0 && !isalpha(str[*i]))
@@ -233,137 +400,76 @@ int eat_not_symb_reverse(char* str, int* i)
 }
 
 
-// сравнение строк
-int strcmp_my(char* str1, char* str2)
-{
-    // проверка входных параметров
-    assert(str1 != NULL);
-    assert(str2 != NULL);
-
-    // перебор символов
-    while(str1 != '\0' && str2 != '\0')
-    {
-        eat_not_symb(&str1);
-        eat_not_symb(&str2);
-        if (tolower(*str1) != tolower(*str2))
-        {
-            return tolower(*str1) - tolower(*str2);
-        }
-        str1++;
-        str2++;
-    }
-
-    return 0;
-}
-
-
-// устранение не букв
-char* eat_not_symb(char** str)
-{
-    while(!isalpha(**str) && ((**str) != '\0'))
-    {
-        (*str)++;
-    }
-
-    return *str;
-}
-
 // обмен указателей на строки
-ERRORS swap(void** str1, void** str2)
+ERRORS swap(void* str1, void* str2, const size_t size_el)
 {
     // проверка входных параметров
     assert(str1 != NULL);
     assert(str2 != NULL);
     
     //обмен
-    void* temp = *str1;
-    *str1 = *str2;
-    *str2 = temp;
+    str_el temp;
+    memcpy(&temp, str1, size_el);
+    memcpy(str1, str2, size_el);
+    memcpy(str2, &temp, size_el);
 
     return ERRORS_OK;
 }
 
 
-
 //запись текста в файл
-ERRORS write_to_file(const char* const (*ind)[MAX_NUM_LINES], const size_t num_lines, bool flag)
+ERRORS write_to_file(str_el* ind, const size_t num_lines)
 {
     // проверка входных данных
     assert(ind != NULL);
     assert(num_lines != 0);
+
     if (num_lines == 0)
     {
         return ERRORS_SIZE;
     }
 
-    // открытие файла для записи
-    FILE* file = fopen(OUTPUT_FILE_NAME, "a+");
-    if (file == NULL)
+    int fd = open(OUTPUT_FILE_NAME, O_BINARY | O_WRONLY | O_APPEND);
+    if (fd == -1)
     {
-        // ошибка открытия файла
-        printf("Open file to write error");
-        return ERRORS_FWRITE;
+        // если файл не открыт
+        printf("Open file to read error\n");
+        return ERRORS_FOPEN;
     }
-
+    
     // вывод данных в файл
     for (size_t i = 0; i < num_lines; i++)
     {
-        if (flag || is_alphas_in((*ind)[i]))
-        {
-            fprintf(file, "%s", (*ind)[i]);
-        }
+        write(fd, ind[i].str, ind[i].len);
     }
-    fprintf(file, "\n\n=======================================================================================\n\n");
 
-    fclose(file);
+    write(fd, "\n\n=======================================================\n\n", 60);
+
+    close(fd);
+
     return ERRORS_OK;
 }
 
 
-// проверка на наличие букв в строке
-bool is_alphas_in(const char* str)
+
+ERRORS write_buffer_to_file(char* buf, const size_t num_symb)
 {
-    // проверка входных параметров
-    assert(str != NULL);
-
-    for (int i = 0; str[i] != '\0'; i++)
+    assert(buf != NULL);
+    if(num_symb == 0) return ERRORS_OK;
+    
+    // открытие файла
+    int fd = open(OUTPUT_FILE_NAME, O_BINARY | O_WRONLY | O_APPEND);
+    if (fd == -1)
     {
-        if (isalpha(str[i]))
-        {
-            return true;
-        }
+        // если файл не открыт
+        printf("Open file to read error\n");
+        return ERRORS_FOPEN;
     }
+    
+    // вывод данных в файл
+    write(fd, buf, num_symb);
 
-    return false;
+    close(fd);
+    return ERRORS_OK;
 }
-
-// очистка памяти
-int free_values(char* ind[], const size_t num_lines)
-{
-    // проверка входных данных
-    assert(ind != NULL);
-
-    // очистка элементов массива
-    for (size_t i = 0; i < num_lines; i++)
-    {
-        free(ind[i]);
-    }
-
-    return 0;
-}
-
-int free_ptrs(char* ind[], const size_t num_lines)
-{
-    // проверка входных данных
-    assert(ind != NULL);
-
-    // очистка элементов массива
-    for (size_t i = 0; i < num_lines; i++)
-    {
-        ind[i] = NULL;
-    }
-
-    return 0;
-}
-
 
